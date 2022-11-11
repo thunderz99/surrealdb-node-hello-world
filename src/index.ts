@@ -9,7 +9,12 @@ type Member = {
         last: string;
     };
     title: string;
-    marketing: boolean;
+    organization?: string;
+};
+
+type Organization = {
+    id?: string;
+    name: string;
 };
 
 async function main() {
@@ -23,56 +28,55 @@ async function main() {
         // Select a specific namespace / database
         await db.use("test", "test");
 
-        // Create a new person with a random id
-        const created = await db.create<Member>("members:tom", {
+        // Create a new organization with an id
+        const org1 = await db.create<Organization>("organizations:dev", {
+            name: "Dev",
+        });
+        console.info("org1:", org1);
+        const org2 = await db.create<Organization>("organizations:sales", {
+            name: "Sales",
+        });
+        console.info("org2:", org2);
+
+        // Create a new member with an id
+        const member1 = await db.create<Member>("members:tom", {
             title: "Team Leader",
             name: {
                 first: "Tom",
                 last: "Anderson",
             },
-            marketing: false,
+            organization: "organizations:dev",
         });
-
-        console.info("created:", created);
-
-        const created2 = await db.create<Member>("members:lucy", {
+        console.info("member1:", member1);
+        const member2 = await db.create<Member>("members:lucy", {
             title: "Member",
             name: {
                 first: "lucy",
                 last: "Tan",
             },
-            marketing: false,
+            organization: "organizations:sales",
         });
+        console.info("member2:", member2);
 
-        console.info("created2:", created2);
-
-        // Update a person record with a specific id
-        const updated = await db.change("members:lucy", {
-            marketing: true,
-        });
-
-        console.info("updated:", updated);
-
-        // Select all people records
-        const members = await db.select<Member>("members");
-
-        console.info("members:", members);
-
-        // Perform a custom advanced query
-        const groups = await db.query(
-            "SELECT marketing, count() FROM type::table($tb) GROUP BY marketing",
+        // Perform a query
+        const result = await db.query(
+            "SELECT * FROM members WHERE organization.name = $orgName FETCH organization",
             {
-                tb: "members",
+                orgName: "Dev",
             },
         );
 
-        console.info("groups:", groups);
+        console.info("selectedMembers:", JSON.stringify(result));
     } catch (e) {
         console.error("ERROR", e);
     } finally {
         const members = await db.select<Member>("members");
         for (const m of members) {
             m.id && (await db.delete(m.id));
+        }
+        const orgs = await db.select<Organization>("organizations");
+        for (const o of orgs) {
+            o.id && (await db.delete(o.id));
         }
     }
 }
